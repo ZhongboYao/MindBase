@@ -1,0 +1,235 @@
+import React from 'react';
+
+const CalendarView = ({ currentDate, learnings, onViewClick, selectedDate, onMonthChange, plans = [] }) => {
+    const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+    const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
+
+    const days = [];
+    // Fill empty slots for previous month
+    for (let i = 0; i < firstDay; i++) {
+        days.push(null);
+    }
+    // Fill days
+    for (let i = 1; i <= daysInMonth; i++) {
+        days.push(i);
+    }
+
+    const isToday = (day) => {
+        const today = new Date();
+        return day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+    };
+
+    const isSelectedDate = (day) => {
+        if (!selectedDate || !day) return false;
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return dateStr === selectedDate;
+    };
+
+    const getLearningsForDay = (day) => {
+        if (!day) return [];
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return learnings.filter(l => l.date === dateStr);
+    };
+
+    // Get task efficiency for a day (0-1, where 1 is 100% complete)
+    const getTaskEfficiency = (day) => {
+        if (!day) return null;
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayPlans = plans.filter(p => p.date === dateStr);
+
+        if (dayPlans.length === 0) return null;
+
+        const completed = dayPlans.filter(p => p.completed).length;
+        return completed / dayPlans.length;
+    };
+
+    // Check if date is in the future
+    const isFutureDate = (day) => {
+        if (!day) return false;
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const today = new Date().toISOString().split('T')[0];
+        return dateStr > today;
+    };
+
+    // Get background color based on efficiency (red -> orange -> green)
+    const getEfficiencyColor = (efficiency) => {
+        if (efficiency === null) return '';
+
+        // Custom colors from user:
+        // Red: #FF0000 = rgb(255, 0, 0) - 0% completion
+        // Orange: #FF9200 = rgb(255, 146, 0) - 50% completion
+        // Green: #BFF900 = rgb(191, 249, 0) - 100% completion
+
+        if (efficiency <= 0.5) {
+            // Red to Orange (0% to 50%)
+            const t = efficiency * 2; // 0 to 1
+            const r = 255 + (255 - 255) * t;  // 255 -> 255
+            const g = 0 + (146 - 0) * t;      // 0 -> 146
+            const b = 0 + (0 - 0) * t;        // 0 -> 0
+            return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+        } else {
+            // Orange to Green (50% to 100%)
+            const t = (efficiency - 0.5) * 2; // 0 to 1
+            const r = 255 + (191 - 255) * t;  // 255 -> 191
+            const g = 146 + (249 - 146) * t;  // 146 -> 249
+            const b = 0 + (0 - 0) * t;        // 0 -> 0
+            return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+        }
+    };
+
+    // Get STRONG glow effect - much more visible
+    const getGlowEffect = (efficiency) => {
+        if (efficiency === null) return '';
+        const color = getEfficiencyColor(efficiency);
+        // VERY strong glow with multiple layers for maximum visibility
+        return `
+            0 0 40px ${color},
+            0 0 30px ${color},
+            0 0 20px ${color},
+            0 0 10px ${color},
+            inset 0 0 20px ${color}40
+        `;
+    };
+
+    return (
+        <div className="bg-gray-900/50 backdrop-blur-md rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+            {/* Month Navigation */}
+            <div className="flex justify-between items-center mb-6">
+                <button
+                    onClick={() => onMonthChange(-1)}
+                    className="p-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
+                    title="Previous Month"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+
+                <h3 className="text-lg font-bold text-white">
+                    {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </h3>
+
+                <button
+                    onClick={() => onMonthChange(1)}
+                    className="p-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
+                    title="Next Month"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 mb-4 text-center">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                    <div key={d} className="text-gray-400 text-sm font-semibold uppercase tracking-wider py-2">
+                        {d}
+                    </div>
+                ))}
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+                {days.map((day, index) => {
+                    const dayLearnings = getLearningsForDay(day);
+                    const hasLearning = dayLearnings.length > 0;
+                    const efficiency = getTaskEfficiency(day);
+                    const isFuture = isFutureDate(day);
+
+                    // Base classes - will use dynamic background color
+                    let cellClasses = `aspect-square rounded-xl p-2 relative flex flex-col justify-between transition-all duration-200 group border text-left`;
+                    let cellStyle = {};
+
+                    if (!day) {
+                        cellClasses += ' invisible';
+                    } else {
+                        cellClasses += ' cursor-pointer hover:scale-105 hover:shadow-lg';
+
+                        // All date blocks get default gray background with black border
+                        cellClasses += ' bg-gray-800/40'; \
+                if (day) {
+                    cellStyle = { border: '2px solid #000' };
+                        }
+
+                // Today highlight (blue ring)
+                if (isToday(day)) {
+                    cellClasses += ' ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-900';
+                        }
+                // Selected date highlight (gray ring)
+                else if (isSelectedDate(day)) {
+                    cellClasses += ' ring-2 ring-gray-400 ring-offset-2 ring-offset-gray-900';
+                        }
+                    }
+
+                return (
+                <div
+                    key={index}
+                    onClick={() => day && onViewClick(day)}
+                    className={cellClasses}
+                    style={cellStyle}
+                >
+                    {day && (
+                        <>
+                            <div className="flex justify-between items-start w-full">
+                                <span
+                                    className={`
+                                            text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full
+                                            ${isToday(day) ? 'bg-blue-500 text-white shadow-lg' :
+                                            isSelectedDate(day) ? 'bg-gray-500 text-white shadow-lg' :
+                                                'text-gray-300'}`}
+                                    style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8)' }}
+                                >
+                                    {day}
+                                </span>
+
+                                {/* LED Efficiency Indicator */}
+                                {!isFuture && efficiency !== null && (
+                                    <div
+                                        className="w-3 h-3 rounded-full"
+                                        style={{
+                                            backgroundColor: getEfficiencyColor(efficiency),
+                                            boxShadow: `
+                                                        0 0 12px ${getEfficiencyColor(efficiency)},
+                                                        0 0 8px ${getEfficiencyColor(efficiency)},
+                                                        0 0 4px ${getEfficiencyColor(efficiency)},
+                                                        inset 0 0 4px rgba(255,255,255,0.5)
+                                                    `,
+                                            border: '1px solid rgba(0,0,0,0.3)'
+                                        }}
+                                    />
+                                )}
+
+                                {/* Count indicator */}
+                                {hasLearning && (
+                                    <span className="text-[10px] bg-black/40 text-gray-200 px-1.5 py-0.5 rounded-md backdrop-blur-sm font-mono">
+                                        {dayLearnings.length}
+                                    </span>
+                                )}
+                            </div>
+
+                            {hasLearning && (
+                                <div className="flex gap-1 mt-1 flex-wrap content-end opacity-60 group-hover:opacity-100 transition-opacity">
+                                    {dayLearnings.slice(0, 5).map((item, i) => (
+                                        <div
+                                            key={i}
+                                            className={`w-1.5 h-1.5 rounded-full ${item.completed ? 'bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'bg-white/30'}`}
+                                        />
+                                    ))}
+                                    {dayLearnings.length > 5 && <span className="text-[8px] text-gray-500 leading-none">...</span>}
+                                </div>
+                            )}
+
+                        </>
+                    )}
+                </div>
+                );
+                })}
+            </div>
+        </div>
+    );
+};
+
+export default CalendarView;
